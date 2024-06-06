@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:  
+    tad.gitops.set/image: ".spec.template.spec.containers[0].image"
+    tad.gitops.get/image: ".spec.template.spec.containers[0].image"
+    tad.gitops.set/replicas: ".spec.replicas"
+    tad.gitops.get/replicas: ".spec.replicas" 
+  labels: 
+    app.kubernetes.io/instance: codgen-0606-new
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name:  codgen-0606-new
+    app.kubernetes.io/part-of: codgen-0606-new  
+  name: codgen-0606-new
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance:  codgen-0606-new 
+  template:
+    metadata: 
+      labels:
+        app.kubernetes.io/instance:  codgen-0606-new
+    spec:
+      containers:
+      - env:
+        - name: MODEL_ENDPOINT
+          value: http://0.0.0.0:8001
+        - name: MODEL_NAME
+          value: "Nondzu/Mistral-7B-code-16k-qlora"
+        image:  quay.io/yangcao/codegen:latest
+        name: app-inference
+        ports:
+        - containerPort: 8501
+        securityContext:
+          runAsNonRoot: true
+      - image: quay.io/rh-aiservices-bu/vllm-openai-ubi9:0.4.2
+        args: [
+            "--model",
+            "Nondzu/Mistral-7B-code-16k-qlora",
+            "--port",
+            "8001",
+            "--download-dir",
+            "/models-cache"]
+        resources:
+          limits:
+            nvidia.com/gpu: '1'
+        volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+        - name: models-cache
+          mountPath: /models-cache
+        name: app-model-service
+        ports:
+        - containerPort: 8001
+        securityContext:
+          runAsNonRoot: true
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: "2Gi"
+      - name: models-cache
+        persistentVolumeClaim:
+          claimName: vllm-models-cache-codgen-0606-new
+
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
