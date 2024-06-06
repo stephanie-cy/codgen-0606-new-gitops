@@ -41,7 +41,9 @@ spec:
             "--port",
             "8001",
             "--download-dir",
-            "/models-cache"]
+            "/models-cache",
+            "--max-model-len",
+            "32768"]
         resources:
           limits:
             nvidia.com/gpu: '1'
